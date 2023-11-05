@@ -1,6 +1,8 @@
 # ansible basics
 
 ```
+# install ansible
+brew install ansible
 # deploy ec2 instance via ansbile
 ansible-playbook ./ansible/aws/deploy_ec2.yaml
 ```
