@@ -1,0 +1,62 @@
+--- # Create EC2 Instance
+- name: create ec2 instance with ansible cli
+  hosts: localhost
+  vars:
+    instance_type: t3.nano
+    ami: ami-06dd92ecc74fdfb36
+    key_name: ansible
+    security_group: ec2
+    vpc_name: ansible-vpc-demo
+    cidr_block: "10.10.0.0/16"
+    cidr: "10.10.0.0/24"
+
+  tasks:
+    - name: create vpc
+      amazon.aws.ec2_vpc_net:
+        name: "ansible-demo-vpc"
+        cidr_block: "{{ cidr_block }}"
+      register: vpc
+
+    - name: create subnet
+      amazon.aws.ec2_vpc_subnet:
+        cidr: "{{ cidr }}"
+        vpc_id: "{{ vpc.vpc.id }}"
+      register: subnet
+
+    - name: create sg
+      amazon.aws.ec2_security_group:
+        name: "ansible-demo-sg"
+        description: "SG for EC2 created via Ansible"
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 80
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "allow all on port 80"
+          - proto: tcp
+            ports:
+              - 22
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "allow all on ssh port"
+      register: security_group
+
+    - name: launch ec2 instance
+      # https://docs.ansible.com/ansible/latest/collections/amazon/aws/ec2_security_group_module.html#parameters
+      amazon.aws.ec2_instance:
+        name: "ansible-demo"
+        tags:
+          resource_type: compute
+          tier: free
+        vpc_subnet_id: "{{ subnet.subnet.id }}"
+        network:
+          assign_public_ip: true
+          delete_on_termination: true
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ ami }}"
+        key_name: "{{ key_name }}"
+        security_group: "{{ security_group.group_id }}"
+        count: 1
+        state: running
+        wait: yes
+        wait_timeout: 300
